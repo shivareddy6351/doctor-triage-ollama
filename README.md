@@ -1,5 +1,6 @@
 # 🏥 AI-Powered Doctor Triage Chatbot
 https://tinyurl.com/AWS777
+https://tinyurl.com/mjfzcbu5
 This project is a **FastAPI-based intelligent healthcare chatbot** that simulates a **virtual doctor** capable of collecting patient symptoms, performing **triage evaluation**, and providing guideline-based recommendations.
 It integrates **pre-trained AI models (via Ollama API)** and multiple logic modules for structured data extraction, triage evaluation, and medical guideline verification.
 
