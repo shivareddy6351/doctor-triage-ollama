@@ -1,0 +1,215 @@
+File System Api
+
+import java.io.InputStream;
+import java.net.URI;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IOUtils;
+
+public class Experiment2
+{
+    public static void main(String[] args) throws Exception
+    {
+        String uri = args[0];
+        Configuration conf = new Configuration();
+        FileSystem fs = FileSystem.get(conf);
+        String hdfs = args[0];
+        fs.copyFromLocalFile(new Path(uri), new Path(hdfs));
+        String local = args[0];
+        fs.copyToLocalFile(new Path(uri), new Path(local));
+        boolean yesorno = fs.mkdirs(new Path(uri));
+        System.out.println("Status of given directory is " + yesorno);
+        InputStream in = null;
+        try
+        {
+            in = fs.open(new Path(uri));
+            IOUtils.copyBytes(in, System.out, 4096, false);
+        }
+        finally
+        {
+            IOUtils.closeStream(in);
+        }
+
+      
+        FileStatus[] files = fs.listStatus(new Path(uri));
+        for(FileStatus file : files)
+        {
+            System.out.println(file.getPath().getName());
+        }
+
+        fs.delete(new Path(uri), true);
+
+        fs.close();
+    }
+}
+
+-----------------------------------
+Employee salary 
+
+
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class MR
+{
+    public static class MapperClass extends
+    Mapper<LongWritable, Text, Text, IntWritable>
+    {
+        public void map(LongWritable key, Text empRecord, Context con)
+        throws IOException, InterruptedException
+        {
+            String[] word = empRecord.toString().split("\\s+");  // small improvement
+
+            if (word.length == 2)
+            {
+                String dept = word[0];
+                int salary = Integer.parseInt(word[1]);
+                con.write(new Text(dept), new IntWritable(salary));
+            }
+        }
+    }
+
+    public static class ReducerClass extends
+    Reducer<Text, IntWritable, Text, IntWritable>
+    {
+        public void reduce(Text key, Iterable<IntWritable> valueList, Context con)
+        throws IOException, InterruptedException
+        {
+            int sum = 0;
+            for (IntWritable var : valueList)
+            {
+                sum += var.get();
+            }
+            con.write(key, new IntWritable(sum));
+        }
+    }
+
+    public static void main(String[] args) throws Exception
+    {
+        Configuration conf = new Configuration();
+        Job job = Job.getInstance(conf, "TotalSalary");
+
+        job.setJarByClass(MR.class);
+        job.setMapperClass(MapperClass.class);
+        job.setReducerClass(ReducerClass.class);
+
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
+    }
+}
+
+--------------------------------------------------------
+WordCount
+
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.StringTokenizer;
+
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+
+import org.apache.hadoop.mapred.MapReduceBase;
+import org.apache.hadoop.mapred.Mapper;
+import org.apache.hadoop.mapred.Reducer;
+import org.apache.hadoop.mapred.OutputCollector;
+import org.apache.hadoop.mapred.Reporter;
+import org.apache.hadoop.mapred.FileInputFormat;
+import org.apache.hadoop.mapred.FileOutputFormat;
+import org.apache.hadoop.mapred.JobClient;
+import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapred.TextInputFormat;
+import org.apache.hadoop.mapred.TextOutputFormat;
+
+public class WC {
+
+    public static class WCMapper extends MapReduceBase
+    implements Mapper<LongWritable, Text, Text, IntWritable> {
+
+        private final static IntWritable one = new IntWritable(1);
+        private Text word = new Text();
+
+        public void map(LongWritable key, Text value,
+                        OutputCollector<Text, IntWritable> output,
+                        Reporter reporter) throws IOException {
+
+            String line = value.toString();
+            StringTokenizer tokens = new StringTokenizer(line);
+
+            while (tokens.hasMoreTokens()) {
+                word.set(tokens.nextToken());
+                output.collect(word, one);
+            }
+        }
+    }
+
+    public static class WCReducer extends MapReduceBase
+    implements Reducer<Text, IntWritable, Text, IntWritable> {
+
+        public void reduce(Text key, Iterator<IntWritable> values,
+                           OutputCollector<Text, IntWritable> output,
+                           Reporter reporter) throws IOException {
+
+            int sum = 0;
+            while (values.hasNext()) {
+                sum += values.next().get();
+            }
+            output.collect(key, new IntWritable(sum));
+        }
+    }
+
+    public static void main(String[] args) throws IOException {
+
+        JobConf conf = new JobConf(WC.class);
+        conf.setJobName("WordCount");
+
+        conf.setOutputKeyClass(Text.class);
+        conf.setOutputValueClass(IntWritable.class);
+
+        conf.setInputFormat(TextInputFormat.class);
+        conf.setOutputFormat(TextOutputFormat.class);
+
+        FileInputFormat.setInputPaths(conf, new Path(args[0]));
+        FileOutputFormat.setOutputPath(conf, new Path(args[1]));
+
+        conf.setMapperClass(WCMapper.class);
+        conf.setReducerClass(WCReducer.class);
+
+        JobClient.runJob(conf);
+    }
+}
+
+
+==========================
+
+CMDS
+
+ls
+pwd
+cat > /home/cloudera/xyz.txt
+cat /home/cloudera/xyz.txt
+hdfs dfs -ls
+hdfs dfs -ls /
+hdfs dfs -mkdir /bsec
+hdfs dfs -put /home/cloudera/xyz.txt /bsec/
+hdfs dfs -cat /bsec/xyz.txt
+hadoop jar /home/cloudera/WordCount.jar WordCount /bsec/xyz.txt /out1
+hdfs dfs -cat /out1/part-00000
+
